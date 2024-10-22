@@ -1,41 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
-  const [transcription, setTranscription] = useState('');
-  const [corrections, setCorrections] = useState([]);
+  const [transcriptions, setTranscriptions] = useState([]);
 
-  const handleDictation = async () => {
-    try{
-      // Placeholder for initiating backend Whisper request
-      const response = await fetch('http://localhost:5001/api/start-dictation', {
-        method: 'POST',
-      });
-      const data = await response.json();
-      setTranscription(data.transcription);
-      setCorrections(data.corrections);
-    } catch (error) {
-      console.error(error);
-    }
+  useEffect(() => {
+    // Load saved transcriptions from local storage on component mount
+    const savedTranscriptions = JSON.parse(localStorage.getItem('transcriptions')) || [];
+    setTranscriptions(savedTranscriptions);
+  }, []);
+
+  const handleClearHistory = () => {
+    localStorage.removeItem('transcriptions');
+    setTranscriptions([]);
   };
 
   return (
     <div className="App">
-      <h1>Proper Noun Correction Dictation</h1>
-      <button onClick={handleDictation}>Start Dictation</button>
-      <div className="transcription">
-        <p>Transcription: {transcription}</p>
-        {corrections.length > 0 && (
-          <div className="corrections">
-            <h3>Suggestions:</h3>
-            <ul>
-              {corrections.map((correction, index) => (
-                <li key={index}>{correction}</li>
-              ))}
-            </ul>
-          </div>
+      <h3>Past Transcriptions</h3>
+      <div className="transcription-list">
+        {transcriptions.length > 0 ? (
+          transcriptions.map((text, index) => (
+            <div key={index} className="transcription-item">
+              {text}
+            </div>
+          ))
+        ) : (
+          <p>No transcriptions available.</p>
         )}
       </div>
+      {transcriptions.length > 0 && (
+        <button onClick={handleClearHistory}>Clear History</button>
+      )}
     </div>
   );
 }
