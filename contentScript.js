@@ -25,18 +25,58 @@ if (document.body) {
 
 // Add click listener to the button
 dictationButton.addEventListener('click', function () {
+    startDictation();
+});
+
+// Function to start dictation
+async function startDictation() {
     console.log('Start dictation triggered');
-    alert('Dictation started!');
-});
+    
+    try {
+        // Get user's microphone
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        let audioChunks = [];
 
-// Set up a MutationObserver to monitor changes to the body element
-const observer = new MutationObserver(() => {
-    // Check if the button is still in the document
-    if (!document.contains(dictationButton)) {
-        document.body.appendChild(dictationButton);
-        console.log('Dictation button re-added to the page.');
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            console.log('Audio recording complete.');
+
+            // Send audioBlob to the backend for processing
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'audio.wav');
+
+            try {
+                const response = await fetch('http://localhost:5001/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.transcription) {
+                    alert(`Transcription: ${data.transcription}`);
+                } else {
+                    console.error('Error in transcription response:', data);
+                }
+            } catch (error) {
+                console.error('Error sending audio to backend:', error);
+            }
+        };
+
+        // Start recording
+        mediaRecorder.start();
+        console.log('Recording started...');
+        
+        // Stop recording after 5 seconds (for demo purposes)
+        setTimeout(() => {
+            mediaRecorder.stop();
+        }, 5000);
+
+    } catch (error) {
+        console.error('Error accessing microphone:', error);
     }
-});
-
-// Start observing the document body for child element changes
-observer.observe(document.body, { childList: true, subtree: true });
+}
