@@ -1,10 +1,10 @@
-console.log('Content script loaded, trying to create the button.');
+// Content script to implement dictation with buttons for start, stop, and paste functionality
+console.log('Content script loaded, trying to create the buttons.');
 
-// Create the button
+// Create the buttons
 const dictationButton = document.createElement('button');
-dictationButton.textContent = 'Start Dictation';
+dictationButton.textContent = 'Start Recording';
 
-// Apply styles to the button
 dictationButton.style.position = 'fixed';
 dictationButton.style.bottom = '20px';
 dictationButton.style.right = '20px';
@@ -23,9 +23,19 @@ if (document.body) {
     console.error('document.body is not available.');
 }
 
+let mediaRecorder;
+let audioChunks = [];
+let transcriptionText = '';
+
 // Add click listener to the button
 dictationButton.addEventListener('click', function () {
-    startDictation();
+    if (dictationButton.textContent === 'Start Recording') {
+        startDictation();
+    } else if (dictationButton.textContent === 'Stop Recording') {
+        stopDictation();
+    } else if (dictationButton.textContent === 'Paste Transcription') {
+        pasteTranscription();
+    }
 });
 
 // Function to start dictation
@@ -35,8 +45,8 @@ async function startDictation() {
     try {
         // Get user's microphone
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
-        let audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
             audioChunks.push(event.data);
@@ -58,7 +68,15 @@ async function startDictation() {
 
                 const data = await response.json();
                 if (data.transcription) {
-                    alert(`Transcription: ${data.transcription}`);
+                    transcriptionText = data.transcription;
+                    console.log(`Transcription: ${transcriptionText}`);
+                    
+                    // Automatically copy transcription to clipboard
+                    await navigator.clipboard.writeText(transcriptionText);
+                    console.log('Transcription copied to clipboard. Ready to paste.');
+                    
+                    dictationButton.textContent = 'Paste Transcription';
+                    dictationButton.style.backgroundColor = '#28a745'; // Change color to green for paste
                 } else {
                     console.error('Error in transcription response:', data);
                 }
@@ -69,14 +87,35 @@ async function startDictation() {
 
         // Start recording
         mediaRecorder.start();
+        dictationButton.textContent = 'Stop Recording';
+        dictationButton.style.backgroundColor = '#ffc107'; // Change color to yellow for recording
         console.log('Recording started...');
-        
-        // Stop recording after 5 seconds (for demo purposes)
-        setTimeout(() => {
-            mediaRecorder.stop();
-        }, 5000);
-
     } catch (error) {
         console.error('Error accessing microphone:', error);
+    }
+}
+
+// Function to stop dictation
+function stopDictation() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        console.log('Recording stopped...');
+    }
+}
+
+// Function to paste transcription
+function pasteTranscription() {
+    if (transcriptionText) {
+        navigator.clipboard.writeText(transcriptionText).then(() => {
+            console.log('Transcription copied to clipboard. Ready to paste.');
+            alert('Transcription copied to clipboard. Please paste it where needed using Ctrl+V or Cmd+V.');
+            dictationButton.textContent = 'Start Recording';
+            dictationButton.style.backgroundColor = '#007bff'; // Reset color to blue for start recording
+            transcriptionText = ''; // Reset transcription text for next recording
+        }).catch((error) => {
+            console.error('Failed to copy transcription to clipboard:', error);
+        });
+    } else {
+        console.warn('No transcription available to paste.');
     }
 }
