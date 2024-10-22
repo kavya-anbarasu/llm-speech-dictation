@@ -2,36 +2,41 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
-  const [transcriptions, setTranscriptions] = useState([]);
+  const [transcriptionHistory, setTranscriptionHistory] = useState([]);
 
+  // Load transcription history from chrome storage when the component mounts
   useEffect(() => {
-    // Load saved transcriptions from local storage on component mount
-    const savedTranscriptions = JSON.parse(localStorage.getItem('transcriptions')) || [];
-    setTranscriptions(savedTranscriptions);
+    // eslint-disable-next-line no-undef
+    chrome.storage.local.get({ transcriptionHistory: [] }, (result) => {
+      setTranscriptionHistory(result.transcriptionHistory);
+    });
   }, []);
 
-  const handleClearHistory = () => {
-    localStorage.removeItem('transcriptions');
-    setTranscriptions([]);
+  // Function to clear transcription history
+  const clearHistory = () => {
+    // eslint-disable-next-line no-undef
+    chrome.storage.local.set({ transcriptionHistory: [] }, () => {
+      console.log('Transcription history cleared.');
+      setTranscriptionHistory([]);
+    });
   };
 
   return (
     <div className="App">
-      <h3>Past Transcriptions</h3>
-      <div className="transcription-list">
-        {transcriptions.length > 0 ? (
-          transcriptions.map((text, index) => (
-            <div key={index} className="transcription-item">
-              {text}
-            </div>
-          ))
+      <h1>Proper Noun Correction Dictation</h1>
+      <div className="transcription-history">
+        <h3>Transcription History</h3>
+        {transcriptionHistory.length > 0 ? (
+          <ul>
+            {transcriptionHistory.map((text, index) => (
+              <li key={index}>{text}</li>
+            ))}
+          </ul>
         ) : (
-          <p>No transcriptions available.</p>
+          <p>No transcription available.</p>
         )}
+        <button onClick={clearHistory}>Clear History</button>
       </div>
-      {transcriptions.length > 0 && (
-        <button onClick={handleClearHistory}>Clear History</button>
-      )}
     </div>
   );
 }

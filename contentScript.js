@@ -59,7 +59,6 @@ async function startDictation() {
             dictationButton.textContent = 'Processing Transcription';
             dictationButton.style.backgroundColor = '#ffc107'; // Processing - yellow
         
-            // Send audioBlob to the backend for processing
             const formData = new FormData();
             formData.append('audio', audioBlob, 'audio.wav');
         
@@ -74,9 +73,16 @@ async function startDictation() {
                     transcriptionText = data.transcription;
                     console.log(`Transcription: ${transcriptionText}`);
         
-                    // Update button to allow pasting transcription
+                    // Automatically copy transcription to clipboard
+                    await navigator.clipboard.writeText(transcriptionText);
+                    console.log('Transcription copied to clipboard. Ready to paste.');
+        
+                    // Update button state
                     dictationButton.textContent = 'Copy Transcription';
-                    dictationButton.style.backgroundColor = '#28a745'; // Copy - green
+                    dictationButton.style.backgroundColor = '#28a745'; // Paste - green
+        
+                    // Store transcription in chrome storage
+                    storeTranscription();
                 } else {
                     console.error('Error in transcription response:', data);
                 }
@@ -84,6 +90,7 @@ async function startDictation() {
                 console.error('Error sending audio to backend:', error);
             }
         };
+        
 
         // Start recording
         mediaRecorder.start();
@@ -129,3 +136,14 @@ function handleCopyEvent() {
     transcriptionText = ''; // Reset transcription text for next recording
     document.removeEventListener('copy', handleCopyEvent); // Remove listener after copy
 }
+
+// Function to store transcription in chrome.storage
+const storeTranscription = () => {
+    chrome.storage.local.get({ transcriptionHistory: [] }, (result) => {
+        const updatedHistory = result.transcriptionHistory;
+        updatedHistory.push(transcriptionText); // Add the new transcription
+        chrome.storage.local.set({ transcriptionHistory: updatedHistory }, () => {
+            console.log('Transcription saved to chrome storage.');
+        });
+    });
+};
