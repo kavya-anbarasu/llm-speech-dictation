@@ -56,7 +56,7 @@ async function startDictation() {
             const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
             console.log('Audio recording complete.');
         
-            dictationButton.textContent = 'Processing Transcription';
+            dictationButton.textContent = 'Processing';
             dictationButton.style.backgroundColor = '#ffc107'; // Processing - yellow
         
             const formData = new FormData();
@@ -77,20 +77,23 @@ async function startDictation() {
                     await navigator.clipboard.writeText(transcriptionText);
                     console.log('Transcription copied to clipboard. Ready to paste.');
         
-                    // Update button state
-                    dictationButton.textContent = 'Copy Transcription';
-                    dictationButton.style.backgroundColor = '#28a745'; // Paste - green
+                    // Update button state back to "Start Recording"
+                    dictationButton.textContent = 'Start Recording';
+                    dictationButton.style.backgroundColor = '#007bff'; // Start Recording - blue
         
                     // Store transcription in chrome storage
                     storeTranscription();
                 } else {
                     console.error('Error in transcription response:', data);
+                    // Handle error, reset button to "Start Recording"
+                    resetButtonState();
                 }
             } catch (error) {
                 console.error('Error sending audio to backend:', error);
+                // Handle error, reset button to "Start Recording"
+                resetButtonState();
             }
         };
-        
 
         // Start recording
         mediaRecorder.start();
@@ -99,6 +102,8 @@ async function startDictation() {
         console.log('Recording started...');
     } catch (error) {
         console.error('Error accessing microphone:', error);
+        // Handle error, reset button to "Start Recording"
+        resetButtonState();
     }
 }
 
@@ -110,32 +115,12 @@ function stopDictation() {
     }
 }
 
-// Function to copy transcription to clipboard
-function copyTranscription() {
-    if (transcriptionText) {
-        navigator.clipboard.writeText(transcriptionText).then(() => {
-            console.log('Transcription copied to clipboard.');
-            // alert('Transcription copied to clipboard. Please copy it where needed using Ctrl+V or Cmd+V.');
-
-            // Reset button to "Start Recording" after pasting
-            dictationButton.textContent = 'Start Recording';
-            dictationButton.style.backgroundColor = '#007bff'; // Start Recording - blue
-            transcriptionText = ''; // Clear transcription
-        }).catch((error) => {
-            console.error('Failed to copy transcription to clipboard:', error);
-        });
-    } else {
-        console.warn('No transcription available to copy.');
-    }
-}
-
-// Function to handle copy event and reset button state
-function handleCopyEvent() {
+// Function to reset button state back to "Start Recording"
+function resetButtonState() {
     dictationButton.textContent = 'Start Recording';
-    dictationButton.style.backgroundColor = '#007bff'; // Reset color to blue for start recording
-    transcriptionText = ''; // Reset transcription text for next recording
-    document.removeEventListener('copy', handleCopyEvent); // Remove listener after copy
+    dictationButton.style.backgroundColor = '#007bff'; // Start Recording - blue
 }
+
 
 // Function to store transcription in chrome.storage
 const storeTranscription = () => {
