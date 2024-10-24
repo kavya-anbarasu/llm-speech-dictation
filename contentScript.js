@@ -65,12 +65,18 @@ dictationButton.addEventListener('click', function () {
     }
 });
 
-// Function to extract Gmail context
+// extractGmailContext function
 function extractGmailContext() {
     try {
-        // Extract sender's name from the Gmail profile info span
-        const senderElement = document.querySelector('span[id^=":"]');
+        // Extract sender's name (usually found in the header or profile section)
+        let senderElement = document.querySelector('span[id^=":"][dir="ltr"]');
+        if (!senderElement) {
+            // Fallback: try other possible selectors in case the first one fails
+            senderElement = document.querySelector('.gb_yb.gbii'); // Gmail profile picture tooltip might have the name
+        }
+
         if (senderElement) {
+            // Extract the sender's name from the innerText, trimming any email address details
             gmailContext.senderName = senderElement.innerText.split('<')[0].trim();
         } else {
             gmailContext.senderName = "Unknown Sender";
@@ -179,9 +185,22 @@ async function correctTranscription(transcription) {
     dictationButton.style.backgroundColor = '#ffc107'; // Correcting - yellow
 
     try {
+        // Constructing a more detailed prompt using Gmail context
+        let contextPrompt = "";
+        if (gmailContext.senderName) {
+            contextPrompt += `The sender's name is ${gmailContext.senderName}. `;
+        }
+        if (gmailContext.recipientNames && gmailContext.recipientNames.length > 0) {
+            contextPrompt += `The recipient(s) are: ${gmailContext.recipientNames.join(', ')}. `;
+        }
+        if (gmailContext.emailThread) {
+            contextPrompt += `Here is the relevant email thread: ${gmailContext.emailThread}. `;
+        }
+
+        const prompt = `${contextPrompt}\n\nPlease correct the following transcription for proper noun recognition, grammar, and contextual accuracy. If provided, please use context to make adjustments to orginal transcription. Only correct the existing message and write nothing else. \n\nOriginal Transcription: \n\n${transcription} \n\nCorrected Transcription: \n\n`;
+
         const requestBody = {
-            transcription,
-            context: gmailContext // Include Gmail context here
+            transcription: prompt,
         };
 
         const response = await fetch('http://localhost:5001/api/correct', {
@@ -212,9 +231,12 @@ async function correctTranscription(transcription) {
     }
 }
 
+
 // Function to copy transcription to clipboard and store it
 async function copyAndStoreTranscription(transcription) {
     try {
+        window.focus();
+
         await navigator.clipboard.writeText(transcription);
         console.log('Transcription copied to clipboard. Ready to paste.');
 

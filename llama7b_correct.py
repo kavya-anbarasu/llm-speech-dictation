@@ -31,25 +31,22 @@ def load_model():
 
 # Function to generate corrected transcription
 def generate_corrections(model, tokenizer, transcription):
-    prompt = f"Please correct and enhance the following transcription for accuracy and proper noun recognition: \n\n{transcription}\n\nOutput just the enhanced version of the transcript and nothing else. Corrected Transcription:  \n\n"  # noqa: E501
-    # print(f"LLM PROMPT: {prompt}")
+    # print(f"INPUT TRANSCRIPTION: {transcription}")
     input_ids = tokenizer(
-        prompt, return_tensors="pt").input_ids.to(model.device)
+        transcription, return_tensors="pt").input_ids.to(model.device)
 
     # Generate response with the Llama 2 model
     with torch.no_grad():
         output = model.generate(
-            input_ids, max_length=300,
+            input_ids, max_length=500,  # Increased max_length to accommodate context
             do_sample=True, top_p=0.95, temperature=0.7)
 
     corrected_text = tokenizer.decode(output[0], skip_special_tokens=True)
+    # print(f"RAW LLM OUTPUT: {corrected_text}")
 
-    # print(f"LLM OUTPUT: {corrected_text} \n\n --------------")
-
-    if "Corrected Transcription:" in corrected_text:
-        corrected_text = corrected_text.split("Corrected Transcription: ")[1].strip()
-    else:
-        corrected_text = corrected_text.strip()
+    # Clean up the response, removing the prompt if it's repeated in the output
+    corrected_text = corrected_text.split("Corrected Transcription:")[1].strip()
+    # print(f"CLEANED LLM OUTPUT: {corrected_text}")
 
     return corrected_text
 
