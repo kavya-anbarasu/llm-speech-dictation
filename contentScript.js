@@ -6,25 +6,9 @@ const isOnGmail = window.location.href.includes("mail.google.com");
 
 console.log('Creating dictation button and toggle...');
 
-// Create the buttons
+// Create the dictation button
 const dictationButton = document.createElement('button');
 dictationButton.textContent = 'Start Recording';
-
-const llmToggle = document.createElement('input');
-llmToggle.type = 'checkbox';
-llmToggle.id = 'llmToggle';
-llmToggle.style.position = 'fixed';
-llmToggle.style.bottom = '20px';
-llmToggle.style.left = '150px'; // Move toggle to the right of the button
-llmToggle.style.zIndex = '1000';
-
-const toggleLabel = document.createElement('label');
-toggleLabel.htmlFor = 'llmToggle';
-toggleLabel.textContent = 'Use LLM Correction';
-toggleLabel.style.position = 'fixed';
-toggleLabel.style.bottom = '20px';
-toggleLabel.style.left = '180px'; // Move label to the right of the toggle
-toggleLabel.style.zIndex = '1000';
 
 // Style dictation button
 dictationButton.style.position = 'fixed';
@@ -37,11 +21,32 @@ dictationButton.style.border = 'none';
 dictationButton.style.borderRadius = '5px';
 dictationButton.style.zIndex = '1000';
 
-// Append the button, toggle, and label to the document body
+// Create the LLM correction toggle
+const llmToggleWrapper = document.createElement('div');
+llmToggleWrapper.style.display = 'flex';
+llmToggleWrapper.style.alignItems = 'center';
+llmToggleWrapper.style.position = 'fixed';
+llmToggleWrapper.style.bottom = '75px'; // Place toggle on top of the button, with spacing
+llmToggleWrapper.style.left = '20px';
+llmToggleWrapper.style.zIndex = '1000';
+
+const llmToggle = document.createElement('input');
+llmToggle.type = 'checkbox';
+llmToggle.id = 'llmToggle';
+
+const toggleLabel = document.createElement('label');
+toggleLabel.htmlFor = 'llmToggle';
+toggleLabel.textContent = 'Use LLM Correction';
+toggleLabel.style.marginLeft = '5px'; // Add spacing between the checkbox and the label
+
+// Append the toggle and label to the wrapper
+llmToggleWrapper.appendChild(llmToggle);
+llmToggleWrapper.appendChild(toggleLabel);
+
+// Append the button and wrapper to the document body
 if (document.body) {
     document.body.appendChild(dictationButton);
-    document.body.appendChild(llmToggle);
-    document.body.appendChild(toggleLabel);
+    document.body.appendChild(llmToggleWrapper);
     console.log('Button and toggle appended to body successfully.');
 } else {
     console.error('document.body is not available.');
@@ -197,7 +202,7 @@ async function correctTranscription(transcription) {
             contextPrompt += `Here is the relevant email thread: ${gmailContext.emailThread}. `;
         }
 
-        const prompt = `${contextPrompt}\n\nPlease correct the following transcription for proper noun recognition, grammar, and contextual accuracy. If provided, please use context to make adjustments to orginal transcription. Only correct the existing message and write nothing else. \n\nOriginal Transcription: \n\n${transcription} \n\nCorrected Transcription: \n\n`;
+        const prompt = `${contextPrompt}\n\nPlease correct the following transcription for proper noun recognition, grammar, and contextual accuracy. If provided, please use context to make adjustments to original transcription. Only correct the existing message and write nothing else. \n\nOriginal Transcription: \n\n${transcription} \n\nCorrected Transcription: \n\n`;
 
         const requestBody = {
             transcription: prompt,
@@ -230,7 +235,6 @@ async function correctTranscription(transcription) {
         resetButtonState();
     }
 }
-
 
 // Function to copy transcription to clipboard and store it
 async function copyAndStoreTranscription(transcription) {
