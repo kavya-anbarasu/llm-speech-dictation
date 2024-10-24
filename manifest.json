@@ -3,7 +3,7 @@
     "name": "Wispr Interview",
     "version": "1.0",
     "description": "A dictation tool with proper noun correction powered by LLMs.",
-    "permissions": ["activeTab", "storage", "scripting"],
+    "permissions": ["activeTab", "storage", "scripting", "background"],
     "background": {
       "service_worker": "background.js"
     },

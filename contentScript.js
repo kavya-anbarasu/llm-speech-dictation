@@ -33,8 +33,6 @@ dictationButton.addEventListener('click', function () {
         startDictation();
     } else if (dictationButton.textContent === 'Stop Recording') {
         stopDictation();
-    } else if (dictationButton.textContent === 'Copy Transcription') {
-        copyTranscription();
     }
 });
 
@@ -67,32 +65,36 @@ async function startDictation() {
                     method: 'POST',
                     body: formData
                 });
-        
+            
                 const data = await response.json();
-                if (data.transcription) {
-                    transcriptionText = data.transcription;
-                    console.log(`Transcription: ${transcriptionText}`);
-        
-                    // Automatically copy transcription to clipboard
-                    await navigator.clipboard.writeText(transcriptionText);
-                    console.log('Transcription copied to clipboard. Ready to paste.');
-        
-                    // Update button state back to "Start Recording"
-                    dictationButton.textContent = 'Start Recording';
-                    dictationButton.style.backgroundColor = '#007bff'; // Start Recording - blue
-        
-                    // Store transcription in chrome storage
-                    storeTranscription();
+                if (data.correctedTranscription) {
+                    // Extract and clean corrected transcription
+                    transcriptionText = data.correctedTranscription.trim();
+                    console.log(`Enhanced Transcription: ${transcriptionText}`);
+                
+                    // Automatically copy corrected transcription to clipboard
+                    try {
+                        await navigator.clipboard.writeText(transcriptionText);
+                        console.log('Corrected transcription copied to clipboard. Ready to paste.');
+                
+                        // Send message to background script to store transcription
+                        storeTranscription(transcriptionText);
+                    } catch (error) {
+                        console.error('Failed to store transcription to popup:', error);
+                    }
+                
+                    // Reset button to "Start Recording" after copying
+                    resetButtonState();
                 } else {
                     console.error('Error in transcription response:', data);
-                    // Handle error, reset button to "Start Recording"
                     resetButtonState();
                 }
+                
             } catch (error) {
                 console.error('Error sending audio to backend:', error);
-                // Handle error, reset button to "Start Recording"
                 resetButtonState();
             }
+            
         };
 
         // Start recording
@@ -102,7 +104,6 @@ async function startDictation() {
         console.log('Recording started...');
     } catch (error) {
         console.error('Error accessing microphone:', error);
-        // Handle error, reset button to "Start Recording"
         resetButtonState();
     }
 }
@@ -121,14 +122,25 @@ function resetButtonState() {
     dictationButton.style.backgroundColor = '#007bff'; // Start Recording - blue
 }
 
+// Function to send transcription to the background script for storage
+function storeTranscription(transcription, retries = 3) {
+    chrome.runtime.sendMessage({ type: 'STORE_TRANSCRIPTION', transcription }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error('Error sending transcription to background script:', chrome.runtime.lastError.message);
 
-// Function to store transcription in chrome.storage
-const storeTranscription = () => {
-    chrome.storage.local.get({ transcriptionHistory: [] }, (result) => {
-        const updatedHistory = result.transcriptionHistory;
-        updatedHistory.push(transcriptionText); // Add the new transcription
-        chrome.storage.local.set({ transcriptionHistory: updatedHistory }, () => {
-            console.log('Transcription saved to chrome storage.');
-        });
+            // Retry logic if there are retries left
+            if (retries > 0) {
+                console.log(`Retrying to store transcription... (${retries} retries left)`);
+                setTimeout(() => {
+                    storeTranscription(transcription, retries - 1);
+                }, 1000);
+            } else {
+                console.error('Failed to store transcription after multiple retries.');
+            }
+        } else if (response && response.success) {
+            console.log('Transcription successfully stored.');
+        } else {
+            console.error('Failed to store transcription.');
+        }
     });
-};
+}
