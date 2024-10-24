@@ -10,32 +10,25 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = 5001;
 
-// Enable CORS for all origins
 app.use(cors());
 
-// Middleware to parse JSON
 app.use(bodyParser.json());
 
-// Multer setup to handle file uploads
 const upload = multer({ dest: 'uploads/' });
 
-// Endpoint to handle transcription requests
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     const audioPath = req.file.path;
     const outputPath = `${audioPath}.txt`;
 
     try {
-        // Command to run Whisper for transcription
         const whisperCommand = `whisper ${audioPath} --model small --output_dir uploads/`;
 
-        // Execute the Whisper command
         exec(whisperCommand, (error, stdout, stderr) => {
             if (error) {
                 console.error('Error executing Whisper:', error);
                 return res.status(500).json({ error: 'Failed to transcribe audio' });
             }
 
-            // Read the transcription from the generated text file
             fs.readFile(outputPath, 'utf8', (err, transcription) => {
                 if (err) {
                     console.error('Error reading transcription file:', err);
@@ -57,7 +50,6 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     }
 });
 
-// Endpoint to handle LLM correction requests
 app.post('/api/correct', async (req, res) => {
     const { transcription } = req.body;
 
@@ -66,11 +58,9 @@ app.post('/api/correct', async (req, res) => {
     }
 
     try {
-        // Save transcription to a temporary file for correction
         const tempTranscriptionFile = path.join(__dirname, 'uploads', 'temp_transcription.txt');
         fs.writeFileSync(tempTranscriptionFile, transcription);
 
-        // Use Llama 2 to improve the transcription
         const llmProcess = spawn('python3', ['llama7b_correct.py', tempTranscriptionFile]);
 
         let correctedText = '';

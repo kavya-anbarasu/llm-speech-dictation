@@ -12,7 +12,6 @@ function App() {
     });
   }, []);
 
-  // Function to clear transcription history
   const clearHistory = () => {
     // eslint-disable-next-line no-undef
     chrome.storage.local.set({ transcriptionHistory: [] }, () => {

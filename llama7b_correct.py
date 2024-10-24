@@ -5,7 +5,6 @@ import torch
 import os
 from dotenv import load_dotenv
 
-# Load the Llama 2 7B model from Hugging Face
 MODEL_NAME = "meta-llama/Llama-2-7b-chat-hf"
 LOCAL_MODEL_PATH = "./local_llama_model"
 
@@ -29,7 +28,6 @@ def load_model():
     return model, tokenizer
 
 
-# Function to generate corrected transcription
 def generate_corrections(model, tokenizer, transcription):
     # print(f"INPUT TRANSCRIPTION: {transcription}")
     input_ids = tokenizer(
@@ -38,14 +36,13 @@ def generate_corrections(model, tokenizer, transcription):
     # Generate response with the Llama 2 model
     with torch.no_grad():
         output = model.generate(
-            input_ids, max_length=500,  # Increased max_length to accommodate context
+            input_ids, max_length=500,
             do_sample=True, top_p=0.95, temperature=0.7)
 
     corrected_text = tokenizer.decode(output[0], skip_special_tokens=True)
     # print(f"RAW LLM OUTPUT: {corrected_text}")
 
-    # Clean up the response, removing the prompt if it's repeated in the output
-    corrected_text = corrected_text.split("Corrected Transcription:")[1].strip()
+    corrected_text = corrected_text.split("Corrected Transcription:")[1].strip()  # noqa: E501
     # print(f"CLEANED LLM OUTPUT: {corrected_text}")
 
     return corrected_text
@@ -58,7 +55,6 @@ if __name__ == "__main__":
 
     transcription_file_path = sys.argv[1]
 
-    # Read transcription from file
     try:
         with open(transcription_file_path, 'r') as f:
             transcription = f.read()
@@ -66,11 +62,8 @@ if __name__ == "__main__":
         print(f"Error: File not found: {transcription_file_path}")
         sys.exit(1)
 
-    # Load the model and tokenizer
     model, tokenizer = load_model()
 
-    # Generate the corrected transcription
     corrected_text = generate_corrections(model, tokenizer, transcription)
 
-    # Output the corrected transcription
     print(corrected_text)
