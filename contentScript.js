@@ -1,5 +1,10 @@
 // Content script to implement dictation with buttons for start, stop, and copy functionality
-console.log('Content script loaded, trying to create the buttons.');
+console.log('Content script loaded');
+
+// Identify if we are on Gmail
+const isOnGmail = window.location.href.includes("mail.google.com");
+
+console.log('Creating dictation button and toggle...');
 
 // Create the buttons
 const dictationButton = document.createElement('button');
@@ -45,15 +50,46 @@ if (document.body) {
 let mediaRecorder;
 let audioChunks = [];
 let transcriptionText = '';
+let gmailContext = {};
 
 // Add click listener to the button
 dictationButton.addEventListener('click', function () {
     if (dictationButton.textContent === 'Start Recording') {
+        // If LLM toggle is checked and we are on Gmail, extract Gmail context
+        if (isOnGmail && llmToggle.checked) {
+            extractGmailContext();
+        }
         startDictation();
     } else if (dictationButton.textContent === 'Stop Recording') {
         stopDictation();
     }
 });
+
+// Function to extract Gmail context
+function extractGmailContext() {
+    try {
+        // Extract sender's name from the Gmail profile info span
+        const senderElement = document.querySelector('span[id^=":"]');
+        if (senderElement) {
+            gmailContext.senderName = senderElement.innerText.split('<')[0].trim();
+        } else {
+            gmailContext.senderName = "Unknown Sender";
+        }
+
+        // Extract recipient names from the "To" field in compose or reply box
+        const recipientsElements = document.querySelectorAll('.akl'); // Gmail uses this class for recipients in compose
+        gmailContext.recipientNames = [...recipientsElements].map(recipient => recipient.innerText.trim());
+
+        // Extract email thread content (actual email body content)
+        const threadElements = [...document.querySelectorAll('.a3s.aXjCH')];
+        gmailContext.emailThread = threadElements.map(thread => thread.innerText).join('\n');
+
+        console.log('Gmail context extracted:', gmailContext);
+    } catch (error) {
+        console.error('Error extracting Gmail context:', error);
+        gmailContext = {}; // Clear context in case of error
+    }
+}
 
 // Function to start dictation
 async function startDictation() {
@@ -143,12 +179,17 @@ async function correctTranscription(transcription) {
     dictationButton.style.backgroundColor = '#ffc107'; // Correcting - yellow
 
     try {
+        const requestBody = {
+            transcription,
+            context: gmailContext // Include Gmail context here
+        };
+
         const response = await fetch('http://localhost:5001/api/correct', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ transcription }),
+            body: JSON.stringify(requestBody),
         });
 
         const data = await response.json();
@@ -180,7 +221,7 @@ async function copyAndStoreTranscription(transcription) {
         // Send message to background script to store transcription
         storeTranscription(transcription);
     } catch (error) {
-        console.error('Failed to store transcription to clipboard:', error);
+        console.error('Failed to copy transcription to clipboard:', error);
     }
 }
 
