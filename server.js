@@ -5,12 +5,16 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = 5001;
 
 // Enable CORS for all origins
 app.use(cors());
+
+// Middleware to parse JSON
+app.use(bodyParser.json());
 
 // Multer setup to handle file uploads
 const upload = multer({ dest: 'uploads/' });
@@ -38,46 +42,63 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
                     return res.status(500).json({ error: 'Failed to read transcription' });
                 }
 
-                // Save transcription to a temporary file for correction
-                const tempTranscriptionFile = path.join(__dirname, 'uploads', 'temp_transcription.txt');
-                fs.writeFileSync(tempTranscriptionFile, transcription);
+                // Send the original transcription back to the client
+                res.json({ originalTranscription: transcription.trim() });
 
-                // Use Llama 2 to improve the transcription
-                const llmProcess = spawn('python3', ['llama7b_correct.py', tempTranscriptionFile]);
-
-                let correctedText = '';
-
-                llmProcess.stdout.on('data', (data) => {
-                    correctedText += data.toString();
-                });
-
-                llmProcess.stderr.on('data', (data) => {
-                    console.error(`Error from LLM correction: ${data}`);
-                });
-
-                llmProcess.on('close', (code) => {
-                    if (code !== 0) {
-                        console.error(`Llama7B process exited with code ${code}`);
-                        return res.status(500).json({ error: 'Failed to generate corrected transcription' });
-                    }
-
-                    // Send the corrected transcription back to the client
-                    res.json({ 
-						originalTranscription: transcription.trim(),
-						correctedTranscription: correctedText
-					});
-
-                    // Clean up the uploaded audio file, transcription, and temp file
-                    fs.unlinkSync(audioPath);
-                    fs.unlinkSync(outputPath);
-                    fs.unlinkSync(tempTranscriptionFile);
-                });
+                // Clean up the uploaded audio file and transcription
+                fs.unlinkSync(audioPath);
+                fs.unlinkSync(outputPath);
             });
         });
 
     } catch (error) {
         console.error('Error during transcription:', error);
         res.status(500).json({ error: 'Failed to transcribe audio' });
+    }
+});
+
+// Endpoint to handle LLM correction requests
+app.post('/api/correct', async (req, res) => {
+    const { transcription } = req.body;
+
+    if (!transcription) {
+        return res.status(400).json({ error: 'Transcription text is required' });
+    }
+
+    try {
+        // Save transcription to a temporary file for correction
+        const tempTranscriptionFile = path.join(__dirname, 'uploads', 'temp_transcription.txt');
+        fs.writeFileSync(tempTranscriptionFile, transcription);
+
+        // Use Llama 2 to improve the transcription
+        const llmProcess = spawn('python3', ['llama7b_correct.py', tempTranscriptionFile]);
+
+        let correctedText = '';
+
+        llmProcess.stdout.on('data', (data) => {
+            correctedText += data.toString();
+        });
+
+        llmProcess.stderr.on('data', (data) => {
+            console.error(`Error from LLM correction: ${data}`);
+        });
+
+        llmProcess.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Llama7B process exited with code ${code}`);
+                return res.status(500).json({ error: 'Failed to generate corrected transcription' });
+            }
+
+            // Send the corrected transcription back to the client
+            res.json({ correctedTranscription: correctedText.trim() });
+
+            // Clean up the temporary transcription file
+            fs.unlinkSync(tempTranscriptionFile);
+        });
+
+    } catch (error) {
+        console.error('Error during LLM correction:', error);
+        res.status(500).json({ error: 'Failed to generate corrected transcription' });
     }
 });
 
