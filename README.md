@@ -1,4 +1,4 @@
-# Wispr Interview Dictation Tool (specialized for Gmail!)
+# Speech Dictation Tool (specialized for Gmail!)
 
 ## Overview
 
